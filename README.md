@@ -92,7 +92,7 @@ See `requirements.txt`. Key deps:
 
 ## 📝 How to cite / license
 
-- **License:** MIT (feel free to adapt; add `LICENSE` file).  
+- **License:** MIT.  
 - If you use this code in academic work, please cite the repository and relevant TCA/SliceTCA/QML references.
 
 ---
