@@ -75,9 +75,9 @@ python -m ipykernel install --user --name eightarm-venv
 
 See `requirements.txt`. Key deps:
 - **Core**: numpy, scipy, pandas, matplotlib, scikit‑learn, tqdm
-- **Tensor methods**: tensorly (TCA); (optional) slicetca if available
-- **Quantum**: pennylane, pennylane‑lightning (optional), torch
-- **Viz/nb**: jupyter, ipykernel, plotly (optional)
+- **Tensor methods**: tensorly (TCA); slicetca 
+- **Quantum**: pennylane, pennylane‑lightning, torch
+- **Viz/nb**: jupyter, ipykernel, plotly 
 
 ---
 
