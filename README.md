@@ -12,7 +12,7 @@ This repository contains seven Jupyter notebooks that take you from raw rodent r
 6. `TCA_decomp.ipynb`
 7. `slicetca_decomp.ipynb`
 
-> There is no QNN notebook in this repo. The documentation below covers exactly these seven notebooks.
+> The documentation below covers exactly these seven notebooks. There is an additional notebook that performs decoding analysis thorugh a 5-qubit QNN in the repo `quantum_machine_learning` taking the file qnn_data.pkl generated running `construct_tensors.ipynb`. 
 
 ---
 
