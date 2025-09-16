@@ -1,105 +1,159 @@
-# Neural Population Decoding in an 8‑Arm Task (PFC/HPC): TCA/SliceTCA, Random Forest, and QNN
+# Neural Data Analysis — 8-Arm Task
 
-This repository contains a **reproducible pipeline** to analyze rodent neural population activity from **prefrontal cortex (PFC)** and **hippocampus (HPC)** during an **8‑arm decision task**, with three complementary aims:
+This repository contains seven Jupyter notebooks that take you from raw rodent recordings to interpretable analyses tailored to an **8-arm radial maze** task. The core theme is to **relate population activity to behavior**—both **during** arm visits and **before** they happen—while also uncovering **low-dimensional structure** in the population.
 
-- **Aim 1 — Structure discovery:** Tensor Component Analysis (**TCA**) and **SliceTCA** to reveal neuronal ensembles (A), temporal/positional motifs (B), and event weights (C).
-- **Aim 2 — Supervised decoding:** Robust **Random Forest (RF)** decoders that predict the arm_id **during-event** and **pre‑event (decision)**, with strong anti‑leakage safeguards and uncertainty estimates.
-- **Aim 3 — Quantum baseline:** A capacity‑matched **Quantum Neural Network (QNN)** using **5 qubits** (angle encoding) compared against classical baselines under identical preprocessing.
+**Notebooks (in run order):**
 
-> **Why this repo?** It emphasizes **fair, capacity‑matched comparisons**, **time‑aware evaluation**, and **interpretable controls** (sanity checks, confidence intervals, permutation tests).
+1. `import_preprocess.ipynb`
+2. `construct_tensors.ipynb`
+3. `position_modulation.ipynb`
+4. `RF_decoder.ipynb`
+5. `pre_event_decoding.ipynb`
+6. `TCA_decomp.ipynb`
+7. `slicetca_decomp.ipynb`
 
----
-
-## 🔁 End‑to‑end pipeline (notebook order)
-
-> **Run in this exact order**; each notebook saves artifacts used by the next steps.
-
-1. **`import_preprocessing.ipynb`** — Load raw data; basic cleaning; **speed filter (optional)**; metadata checks.
-2. **`construct_tensors.ipynb`** — Build event‑level matrices and tensors in **(neurons × time × events)** convention; **duration outlier filtering (MAD)**; time normalization targets.
-3. **`position_modulation.ipynb`** — Compute linearized position / slices; explore rate vs. position; prepare **slice indices** for SliceTCA.
-4. **`RF_decoder.ipynb`** — **During‑event** decoding with **Random Forest**. Chronological holdouts with **GAP**; **blocked CV**; **TRAIN‑only** preprocessing (drop low‑spike neurons, set T, build X, scale, optional PCA). Reports **Accuracy (Wilson CI)**, **Macro‑F1 (bootstrap CI)**, **perm‑test p‑value**, confusions, and importances.
-5. **`pre_event_decoding.ipynb`** — **Pre‑event** decoding (decision). Align fixed windows **before event onset**; guarantee **no overlap** with during‑event windows to avoid leakage; same evaluation protocol as (4).
-6. **`TCA_decomp.ipynb`** — CP/TCA on (neurons × time × events); visualize **A/B/C factors**; use **C** (or PCA of C) for 3‑D clustering and simple classifiers.
-7. **`slicetca_decomp.ipynb`** — SliceTCA with **time/position slices** and **smoothness** on B; cleaner motifs and often clearer class separation in C. Export C for downstream decoding/visualization.
-8. **`qnn.ipynb`** — **Aim 3**: Reduce each event to **5 PCs**; 1‑to‑1 **angle encoding** onto 5 qubits; **3‑layer ring‑entangled** ansatz; 5 ⟨Z⟩ → linear **5→3** head. Train with cross‑entropy and **parameter‑shift**. Compare to logistic regression, linear/RBF‑SVM, and RF on the same 5‑D inputs using **GroupKFold(trial_id)**.
+> There is no QNN notebook in this repo. The documentation below covers exactly these seven notebooks.
 
 ---
 
-## 🧪 Data & expected layout
+## Why this pipeline for an 8-arm task?
 
-```
-data/
-├── raw/               # raw recordings and annotations (not versioned)
-├── interim/           # intermediate artifacts (npz/csv) saved by notebooks
-└── processed/         # tensors, factors, trained models, and figures
-```
+In an 8-arm maze, the animal’s behavior naturally decomposes into **events**—departing the center, entering an arm, possibly obtaining a reward, and exiting. Neural activity is expected to reflect:
 
-- The code assumes **event‑level matrices** (neurons × time) can be constructed per trial.
-- Use consistent sampling/binning across sessions; see `construct_tensors.ipynb` for time normalization targets:  
-  **`median_pad`** (truncate long, pad short with zeros) or **`median_minus_std`** (truncate to median−1 SD).
+* **Where** the animal is (arm identity and position along the arm),
+* **What** it is about to do (upcoming arm choice),
+* **How** population patterns organize across **time** (temporal motifs) and **trials** (event structure).
+
+This repo therefore builds **event-aligned matrices/tensors**, performs **behavioral decoding** (during-event and pre-event), and uses **tensor decompositions** to identify **ensembles**, **temporal components**, and **event-space structure**.
 
 ---
 
-## 🔒 Reproducibility & leakage guardrails
-
-- **Chronological splits + GAP** between TRAIN+VAL and TEST to break temporal autocorrelation.
-- **Blocked CV** in TRAIN+VAL; **TRAIN‑only** fitting for neuron filtering, time‑length **T**, scaler, and optional PCA.
-- **Sanity checks**: label **shuffles** and **temporal rotations** (chance‑level); **permutation tests** on TEST (p‑values).
-- **GroupKFold(trial_id)** for the QNN & classical baselines (Aim 3) so that **events from the same trial** never appear in both train and test.
-
----
-
-## 🧠 What is “during‑event” vs “pre‑event (decision)” decoding?
-
-- **During‑event**: features come from the **event window itself** (aligned to entry/behavior). Tests if population activity **represents** the chosen arm while it unfolds.
-- **Pre‑event (decision)**: features come from a **fixed window before event onset** (non‑overlapping). Tests if population activity **predicts** the upcoming arm **before** observable behavior.  
-  *Both use the same RF protocol; windows are disjoint to avoid leakage.*
-
----
-
-## 🚀 Quickstart
+## Installation
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate            # on Windows: .venv\Scripts\activate
+source .venv/bin/activate      # on Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m ipykernel install --user --name eightarm-venv
-# Open Jupyter and run notebooks 1→8 in order
+python -m ipykernel install --user --name neural-analysis
 ```
 
-- Python **3.10+** recommended. If available, set `PL_LIGHTNING_GPU=1` to enable PennyLane Lightning GPU backend (optional).
+Python 3.10+ is typically suitable.
 
 ---
 
-## 📦 Requirements (pip)
+## Notebook overview — what and why
 
-See `requirements.txt`. Key deps:
-- **Core**: numpy, scipy, pandas, matplotlib, scikit‑learn, tqdm
-- **Tensor methods**: tensorly (TCA); slicetca 
-- **Quantum**: pennylane, pennylane‑lightning, torch
-- **Viz/nb**: jupyter, ipykernel, plotly 
+### 1) `import_preprocess.ipynb` — Load & clean
 
----
+**What:** Load spikes/clusters and behavioral trajectories (e.g., `.whl/.lwhl`) and perform basic sanity checks (time coverage, speed distributions, session/day metadata).
+**Why:** Downstream analyses require **time-aligned**, **artifact-aware** inputs. Even small mistakes (dropped samples, clock drift, or speed thresholds) can leak into decoding and factorization, giving inflated or misleading results.
 
-## 📊 Outputs & figures
+**Typical considerations explained in code/comments:**
 
-- `processed/factors/` — TCA/SliceTCA factors (A,B,C).  
-- `processed/models/` — RF/QNN trained objects and CV summaries.  
-- `processed/metrics/` — Accuracy, Macro‑F1 (with CIs), permutation tests, confusion matrices.  
-- `processed/figures/` — Event‑space 3‑D plots (C), importances, heatmaps.
+* **Speed filters** to exclude immobility or grooming that do not reflect navigational coding.
+* **Alignment checks** to ensure spikes and position timestamps match one another.
+* **Cell-type masks** (if available) to restrict to neurons of interest for a given analysis.
 
 ---
 
-## 📝 How to cite / license
+### 2) `construct_tensors.ipynb` — Event-level matrices/tensors
 
-- **License:** MIT.  
-- If you use this code in academic work, please cite the repository and relevant TCA/SliceTCA/QML references.
+**What:** Segment the continuous session into **events** (arm visits/trials) and extract matrices in the convention **(neurons × time bins)** per event. Optionally normalize durations (e.g., truncation/padding) so events are comparable.
+**Why:** Event alignment lets us ask **within-event** questions (temporal motifs as the animal traverses an arm) and **across-event** questions (consistency of coding across arms/trials). It also prepares the data for **decoding** and **tensor decompositions** that assume a consistent (neurons × time × events) shape.
+
+**Design choices discussed:**
+
+* **Binning:** fixed-width time bins vs. time-warped bins to equalize event duration. Fixed bins preserve real time; warping eases cross-event comparability.
+* **Inclusion criteria:** which events count (rewarded arms only vs. all arms), and how to treat partial/noisy events.
 
 ---
 
-## ❓FAQ (short)
+### 3) `position_modulation.ipynb` — Linearized position & basic modulation
 
-- **Why Random Forest?** Strong baseline for noisy, nonlinear neural data; minimal tuning; feature importances map back to neurons (no PCA case).
-- **Why 5 PCs for the QNN?** Matches **5 qubits** for **angle encoding** one‑to‑one; keeps capacity matched to classical baselines.
-- **Why GroupKFold by trial?** Prevents events from the same trial leaking across splits; fair evaluation.
-- **Why SliceTCA?** Slice alignment + smoothness yields cleaner motifs and often clearer class separation than plain TCA.
+**What:** Compute **linearized position** along each arm from XY trajectories; optionally divide into **slices/segments**. Relate firing (rates or binned spikes) to position along the arm.
+**Why:** In a radial maze, coding often respects the **geometry** of arms. Linearization collapses 2D motion onto a 1D metric along each arm, enabling clear **position-tuning** summaries and comparisons across events and arms.
+
+**Analytical notes:**
+
+* Linearization depends on center coordinates and arm orientation/length assumptions.
+* Position slicing (e.g., equal-length segments) supports models that need discrete states or spatial bins for interpretability.
+
+---
+
+### 4) `RF_decoder.ipynb` — During-event decoding (supervised)
+
+**What:** Train a **Random Forest** classifier on features derived from the **event window itself** (e.g., binned spikes/rates) to decode **arm identity** or related labels.
+**Why:** During-event decoding answers: *Given the neural activity while the animal is in an arm, how well can we recover where it is or what it’s doing?* RF is a robust baseline, handles nonlinearities, and yields interpretable **feature importance**.
+
+**Methodological cautions surfaced in the notebook:**
+
+* **Leakage avoidance:** keep train/test events temporally separated (chronological or blocked splits).
+* **Label balance & chance controls:** simple shuffles provide sanity checks for overfitting.
+* **Reporting:** accuracy with confusion matrices gives **which-arm** error structure (e.g., confusions among neighboring arms).
+
+---
+
+### 5) `pre_event_decoding.ipynb` — Pre-event (decision) decoding
+
+**What:** Use the **pre-event window** (a fixed interval before event onset) with the **same RF protocol** to test **predictive** information, i.e., can we decode the **upcoming arm** *before* the animal enters it?
+**Why:** This probes **planning/decision-related** signals. Comparing pre-event vs. during-event performance separates **prospective** from **current-state** coding.
+
+**Key points emphasized:**
+
+* **No overlap** between pre-event and during-event windows.
+* Same leakage-aware splits as in the during-event notebook for fair comparison.
+* Interpretation: significant pre-event accuracy suggests anticipatory coding beyond mere position.
+
+---
+
+### 6) `TCA_decomp.ipynb` — Tensor Component Analysis (CP)
+
+**What:** Apply CP/TCA to the **(neurons × time × events)** tensor to extract factors: **A** (neurons/ensembles), **B** (temporal motifs), **C** (event weights/structure).
+**Why:** TCA seeks **low-rank structure** jointly across neurons, time, and events. This can reveal:
+
+* **Ensembles** that co-activate,
+* **Motifs** aligned to event progression (e.g., entry/approach/exit),
+* **Event clustering** (e.g., different patterns for rewarded vs. non-rewarded arms).
+
+**Modeling notes:**
+
+* **Rank selection** (number of components) trades reconstruction vs. interpretability.
+* **Stability checks** (initialization seeds / split-half comparisons) help validate motifs.
+
+---
+
+### 7) `slicetca_decomp.ipynb` — SliceTCA (position/time-aware)
+
+**What:** Decompose data with **slice-aware** constraints (e.g., position or time slices) to obtain smoother, often more interpretable factors than plain CP.
+**Why:** In navigational tasks, signals change smoothly with position/time. SliceTCA leverages this prior to **denoise** factors and sharpen **event-space** separations, making motifs easier to read and relate to behavior.
+
+**Interpretation hints:**
+
+* Compare SliceTCA factors to CP/TCA: clearer motifs or tighter event clustering indicate the value of the slice prior.
+* Link event-weights (C) to behavioral variables (arm identity, reward) to ground factors in task structure.
+
+---
+
+## Data & analysis assumptions (conceptual)
+
+* **Event definition:** A “visit” typically spans center-out → in-arm → (optional) reward → arm-out. Exact onset/offset are defined in preprocessing/segmentation code.
+* **Units:** Analyses assume consistent time units (e.g., seconds) across position and spike timestamps.
+* **Binning:** Fixed-width bins preserve physical time; time-warping fosters across-event comparability. Choice depends on the research question.
+* **Cell selection:** If cell types/quality metrics exist, you may restrict analyses to specific neuron classes for clearer effects.
+
+---
+
+## Good practice & caveats
+
+* **Temporal leakage:** Always split by time/blocks; avoid mixing near-by events across train/test.
+* **Controls:** Add label shuffles or temporal rotations as a baseline.
+* **Parameter logging:** Record bin width, pre-event window length, velocity/quality thresholds, and event definitions. They strongly impact decoding and factorization.
+* **Interpretability:** For TCA/SliceTCA, cross-validate ranks and check factor stability; don’t over-interpret a single run.
+
+---
+
+## License
+
+MIT — see `LICENSE`.
+
+---
