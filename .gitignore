@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+
+# Local recordings, intermediate data, and notebook output backups
+data/
+local_archive/
+outputs/
+plots/
+*.pkl
+*.pickle
+*.res
+*.clu
+*.des
+*.whl
+*.lwhl*
+*.speed
+*.trials
+*.reward_arms
+*.all_arms
+
+# Local credentials and configuration
+.env
+.env.*
+.aws/
